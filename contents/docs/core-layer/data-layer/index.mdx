@@ -1,0 +1,203 @@
+---
+title: Data Layer
+description: Data Layer.
+---
+### 
+
+**1. Policies:**
+
+- **Functionality:** Define rules to control data access, modification, and ordering based on user roles, applications, or tenant restrictions.
+- **Structure:**
+    - `IDataPolicy`: The base interface for all data policies.
+    - `IFilterPolicy<T>`: Defines a filter predicate for queries, restricting data access.
+    - `IModificationPolicy<T>`: Controls actions before/after data modifications.
+    - `IOrderByPolicty<T>`: Specifies an ordering rule for queries.
+- **Example Policy Implementation:**
+    
+    ```csharp
+    // ActiveRequiredPolicy: Ensures access only to active records (not deleted)
+    public class ActiveRequiredPolicy<T> :
+        FilterPolicy<T>,
+        IFindPolicy<T>,
+        IDeletePolicy<T>,
+        IActiveFilter
+        where T : IEntityActive
+    {
+        public ActiveRequiredPolicy() : base((p => !p.IsDeleted)) {}
+    
+        public void ChallengeDelete(T entity)
+        {
+            if (entity is null) return;
+            entity.IsDeleted = true;
+        }
+    
+        public void ChallengeFind(T entity)
+        {
+            if (entity.IsDeleted)
+                throw new DomainValidationException("Object is deleted");
+        }
+    }
+    
+    ```
+    
+- **Custom Policy Implementation:**
+    
+    ```csharp
+    // Custom filter policy example:
+    public class MyCustomFilterPolicy<T> : IFilterPolicy<T> where T : IEntityAudit, IAppEntity
+    {
+        private readonly ICoreProvider _coreProvider;
+    
+        public MyCustomFilterPolicy(ICoreProvider coreProvider) => _coreProvider = coreProvider;
+    
+        public Expression<Func<T, bool>> Predicate()
+        {
+            string appId = _coreProvider.IdentityProvider.Identity.AppId;
+            string userName = _coreProvider.IdentityProvider.Identity.UserName;
+            // Combine filtering based on AppId and UserName for a specific custom logic
+            return (p => p.AppId == appId && p.CreatedBy == userId && p.Name.StartsWith(userName));
+        }
+    }
+    
+    ```
+    
+
+**2. Repositories:**
+
+- **Functionality:** Manage database interactions for specific entity types.
+- **Structure:**
+    - `IRepository`: The base interface for all repositories.
+    - `IRepositoryKey<T>`: Extends `IRepository` to handle entity key-based operations.
+    - `Repository<T>`: Base class for implementing specific repositories, offering CRUD functionality.
+- **Example Repository Implementation:**
+    
+    ```csharp
+    // EmailTemplateRepository: Manages EmailTemplate entities in the database
+    public class EmailTemplateRepository : Repository<EmailTemplate>, IEmailTemplateRepository
+    {
+        // Implement methods for Add, Update, Delete, Find, GetAll, etc.
+        // You can override the default implementation of Repository<T> if needed.
+    }
+    
+    ```
+    
+    - **Detailed Example:**
+        
+        ```csharp
+        public class ProductRepository : Repository<Product>, IProductRepository
+        {
+            public ProductRepository(IUnitOfWork unitOfWork, ICoreProvider coreProvider) : base(unitOfWork, coreProvider)
+            {
+                AddPolicies(new AuditRequiredPolicy<Product>(coreProvider), new ActiveRequiredPolicy<Product>());
+            }
+        
+            public override Product Add(Product entity, bool saveChanges = false)
+            {
+                Policies
+                    .OfType<IAddPolicy<Product>>()
+                    .ToList()
+                    .ForEach(p => p.ChallengeBeforeAdd(entity));
+        
+                var result = base.Add(entity, saveChanges);
+        
+                Policies
+                    .OfType<IAddPolicy<Product>>()
+                    .ToList()
+                    .ForEach(p => p.ChallengeAfterAdd(entity));
+        
+                return result;
+            }
+        
+            public override Product Update(Product entity, bool saveChanges = false)
+            {
+                Policies
+                    .OfType<IUpdatePolicy<Product>>()
+                    .ToList()
+                    .ForEach(p => p.ChallengeBeforeUpdate(entity));
+        
+                var result = base.Update(entity, saveChanges);
+        
+                Policies
+                    .OfType<IUpdatePolicy<Product>>()
+                    .ToList()
+                    .ForEach(p => p.ChallengeAfterUpdate(entity));
+        
+                return result;
+            }
+        
+            public override bool Delete(Product entity, bool saveChanges = false)
+            {
+                Policies
+                    .OfType<IDeletePolicy<Product>>()
+                    .ToList()
+                    .ForEach(p => p.ChallengeDelete(entity));
+                return base.Delete(entity, saveChanges);
+            }
+        
+            public async Task<bool> DeleteAsync(Guid id, bool saveChanges = false)
+            {
+                var entity = await FindAsync(id);
+                if (entity != null)
+                {
+                    Policies.OfType<IDeletePolicy<Product>>().ToList().ForEach(p => p.ChallengeDelete(entity));
+                    return await DeleteAsync(entity, saveChanges) ;
+                }
+                return false;
+            }
+        }
+        
+        ```
+        
+
+**3. Transactions:**
+
+- **Functionality:** Ensure data consistency and atomicity by grouping database operations within a managed transaction unit.
+- **Structure:**
+    - `ICustomTransaction`: Interface for managing custom transactions, supporting committing and rolling back operations.
+    - `CustomTransaction`: A concrete implementation of `ICustomTransaction`, wrapping the `System.Transactions.TransactionScope`.
+    - `EmptyTransaction`: Representing no-operation transactions (useful when no transaction management is required).
+- **Example Transaction Implementation:**
+    
+    ```csharp
+    using (var transaction = _unitOfWork.BeginTransaction())
+    {
+        // Perform multiple database operations within the context of this transaction
+        // ...
+        // If any operation fails, call transaction.Rollback();
+        // If all operations are successful, call transaction.Commit();
+        transaction.Commit();
+    }
+    
+    ```
+    
+
+**4. Unit of Work:**
+
+- **Functionality:** Provides a cohesive mechanism to manage multiple database operations as a single unit. Ensures all operations either commit or roll back together for data integrity.
+- **Structure:**
+    - `IUnitOfWork`: Defines the interface for a unit of work, managing transactions and repositories.
+    - `UnitOfWork`: A base class for implementing the `IUnitOfWork` interface. Provides basic functionality like starting and managing transactions, retrieving repositories, and saving changes to the database.
+- **Example Unit of Work Implementation:**
+    
+    ```csharp
+    using var unitOfWork = new UnitOfWork();
+    var emailTemplate = new EmailTemplate
+    {
+        Name = "Welcome Email",
+        Subject = "Welcome to the Site!",
+        // ... other properties ...
+    };
+    
+    // Add the email template through the repository
+    var emailTemplateAdded = unitOfWork.GetRepositoryByEntityType<EmailTemplate>().Add(emailTemplate, true); // save changes to DB
+    
+    // Perform other operations as needed
+    // ...
+    
+    // Save all changes made in the unit of work
+    unitOfWork.SaveChanges(); // or await unitOfWork.SaveChangesAsync() for asynchronous operations
+    
+    ```
+    
+
+### **Entities Layer**

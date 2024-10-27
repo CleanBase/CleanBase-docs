@@ -1,0 +1,74 @@
+---
+title: Service Layer
+description: Service Layer.
+---
+- **Functionality:** Provides various services for specific tasks.
+- **Batchs:**
+    - **Functionality:** Enables efficient processing of large datasets in batches.
+    - **Structure:**
+        - `BatchOperation<T>`: A class implementing a batch operation pattern.
+    - **Example Batch Operation Implementation:**
+        
+        ```csharp
+        // Example: Processing a list of Products in batches
+        var allProducts = BatchQueryOperation.GetAll<Product>(
+            1000, // Page size (number of items per batch)
+            (pageIndex, pageSize) => GetProductsFromDatabase(pageIndex, pageSize) // Function to retrieve products from database
+        );
+        
+        ```
+        
+- **Core Services:**
+    - **Functionality:** Provides core services and components used throughout the framework.
+    - **Example Implementation:**
+        
+        ```csharp
+        // CoreProvider:  A class that aggregates other core services
+        public class CoreProvider : ICoreProvider
+        {
+            public ISmartLogger Logger { get; set; }
+            public IMapper Mapper { get; set; }
+            public IServiceProvider ServiceProvider { get; set; }
+            public IIdentityProvider IdentityProvider { get; set; }
+            public IPolicyFactory PolicyFactory { get; set; }
+        
+            // Constructor for injecting dependencies
+            public CoreProvider(ISmartLogger logger, IMapper mapper, IIdentityProvider identityProvider, IServiceProvider serviceProvider, IPolicyFactory policyFactory)
+            {
+                this.Logger = logger;
+                this.Mapper = mapper;
+                this.IdentityProvider = identityProvider;
+                this.ServiceProvider = serviceProvider;
+                this.PolicyFactory = policyFactory;
+            }
+        }
+        
+        ```
+        
+    - **Custom Core Service Implementation:**
+        
+        ```csharp
+        // Example: Implementing a custom file processing service
+        public class MyFileProcessingService : IFileProcessingService
+        {
+            // ...  Implementation of file processing logic ...
+        }
+        
+        ```
+        
+- **Jobs:**
+    - **Functionality:** Provides tools for managing background tasks and scheduled jobs.
+    - **Structure:**
+        - `IBackgroundJob`: Interface defining methods for managing jobs (enqueue, schedule, recurring, etc.).
+        - `IProcessingJobConsumer`: Interface for consuming and processing background jobs.
+    - **Example Job Implementation:**
+        
+        ```csharp
+        // Example: Scheduling a job to run every hour
+        _backgroundJobService.Recurring("SendDailyReport",
+            () => SendDailyReport(), // Function to execute the job
+            cronExpression: "0 0 * * * ?" // Executes at the start of every hour
+        );
+        
+        ```
+        

@@ -1,0 +1,23 @@
+---
+title: Validator Layer
+description: Validator Layer.
+---
+- **Functionality:** Validate data objects and ensure they conform to predefined rules.
+- **Structure:**
+    - `IValidatorBase`: Base interface for all validators, defining `Validate` method.
+    - `IValidator<T>`: Interface specific for validating objects of type `T`.
+    - `CoreValidator<T>`: Base class for implementing validators, extending FluentValidation.
+- **Example Validator Implementation:**
+    
+    ```csharp
+    public class EmailTemplateValidator : CoreValidator<EmailTemplate>
+    {
+        protected override void ApplyCustomRules()
+        {
+            RuleFor(x => x.Subject).NotEmpty().WithMessage("Subject cannot be empty");
+            RuleFor(x => x.From).EmailAddress().WithMessage("Invalid email format for From").NotEmpty();
+            // ... other validation rules ...
+        }
+    }
+    
+    ```

@@ -1,0 +1,107 @@
+---
+title: Entities Layer
+description: Entities Layer.
+---
+### 
+
+- **Structure:**
+    - `EntityCore`: Base class for all entities, including core functionality.
+    - `EntityCoreKey`: Extends `EntityCore` with a primary key property.
+    - `EntityActive`: Extends `EntityCoreKey` with a deleted flag (to track active records).
+    - `EntityAudit`: Adds audit information (created by, updated by, timestamps) to `EntityCoreKey`.
+    - `EntityNameAuditActive`: Combines a name, audit information, and active status into a single base class.
+- **Example Entity Implementation:**
+    
+    ```csharp
+    // EmailTemplate entity:
+    public class EmailTemplate : EntityNameAuditActive
+    {
+        public string? Code { get; set; }
+        public string? ExternalTemplateId { get; set; }
+        public string? From { get; set; }
+        public string? FromName { get; set; }
+        public string? To { get; set; }
+        public string? Cc { get; set; }
+        public string? Bcc { get; set; }
+        public string? HtmlBody { get; set; }
+        public string? TextBody { get; set; }
+        public string? Subject { get; set; }
+        public bool SendAsHtml { get; set; }
+        public string? Language { get; set; }
+    }
+    
+    ```
+    
+- **Custom Entity Implementation:**
+    
+    ```csharp
+    // Example of a custom entity
+    public class Product : EntityNameAuditActive
+    {
+        public string? Description { get; set; }
+        public decimal Price { get; set; }
+        public string? Category { get; set; }
+    }
+    
+    ```
+    
+
+**Extensions Layer**
+
+- **Functionality:** Offers methods to extend the functionality of common types such as dictionaries, IQueryable, strings, etc.
+- **Example Extension:**
+    
+    ```csharp
+    // StringExtension: Adds methods for string manipulation
+    public static string AppendJson(this string str, object data, string combine = ":")
+    {
+        return str + combine + " " + JsonConvert.SerializeObject(data);
+    }
+    
+    ```
+    
+    - **Usage Example:**
+        
+        ```csharp
+        string message = "Error details:";
+        message = message.AppendJson(new { ErrorCode = "100", ErrorMessage = "Invalid input" });
+        Console.WriteLine(message); // Outputs: "Error details:: { "ErrorCode": "100", "ErrorMessage": "Invalid input" }"
+        
+        ```
+        
+    - **Other Available String Extensions:**
+        - `PathCombine(string src, params string[] dest)`: Combines paths in a safe and cross-platform manner.
+        - `AppendJson(string str, object data1, object data2, string combine = ":")`: Appends JSON representations of multiple objects.
+- **IQueryable Extensions:**
+    - `Order<T, TKey>(IQueryable<T> query, Expression<Func<T, TKey>> keySelector, bool? asc)`: Provides a simple way of ordering an `IQueryable` based on a key selector and ascending/descending options.
+    - `OrderDynamic<T>(IQueryable<T> source, string sortField, object asc)`: Allows dynamic ordering of `IQueryable` based on a string sort field and ascending/descending values.
+    - `SortBy<T>(IQueryable<T> query, ICollection<SortItem> sortItems)`: Facilitates complex sorting based on multiple properties in an `IQueryable` using a `SortItem` collection.
+- **Dictionary Extensions:**
+    - `ToAnonymous<TKey, TValue>(IDictionary<TKey, TValue> dict)`: Converts a dictionary to an anonymous object, making it easier for use with different methods.
+
+**Helper Layer**
+
+- **Functionality:** Utility methods for common tasks like date/time management and cryptography.
+- **Example Helper Class:**
+    
+    ```csharp
+    // DateTimeHelper: Provides helper methods for date/time calculations
+    public static class DateTimeHelper
+    {
+        public static DateTime ConvertToVNTime(this DateTime dt) => dt.AddHours(7.0);
+        public static DateTime VnNow() => DateTime.UtcNow.ConvertToVNTime();
+    }
+    
+    ```
+    
+    - **Usage Example:**
+        
+        ```csharp
+        var vnTime = DateTime.Now.ConvertToVNTime();
+        var vnNow = DateTimeHelper.VnNow();
+        
+        ```
+        
+- **Other Available Helpers:**
+    - `CryptographyHelper`: Provides methods for cryptography, including generating RSA signing keys.
+    - `Guard`: Implements validation checks for common scenarios, such as throwing exceptions if a condition is false.

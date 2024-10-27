@@ -1,0 +1,21 @@
+---
+title: ViewModels Layer
+description: ViewModels Layer.
+---
+- **Functionality:** Map data between models and view models for presentation.
+- **Structure:**
+    - `AutoMapperConfiguration`: A base class for setting up AutoMapper mappings using profiles.
+    - `ProfileBase`: A base class for AutoMapper profiles, providing `DefaultMapping` and `CustomMapping` methods to define mappings.
+    - **Example Mapping Profile:**
+        
+        ```csharp
+        public class EmailTemplateBaseProfile : ProfileBase
+        {
+            protected override void DefaultMapping()
+            {
+                // Map from EmailTemplate to EmailTemplateResponse (ViewModel)
+                CreateMap<EmailTemplate, EmailTemplateResponse>();
+            }
+        }
+        
+        ```
