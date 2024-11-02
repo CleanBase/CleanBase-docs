@@ -1,11 +1,18 @@
 "use client";
 
-import { getDocsTocs } from "@/lib/markdown";
 import clsx from "clsx";
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
 
-type Props = { data: Awaited<ReturnType<typeof getDocsTocs>> };
+type TocItem = {
+  href: string;
+  level: number;
+  text: string;
+};
+
+type Props = {
+  data: TocItem[];
+};
 
 export default function TocObserver({ data }: Props) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -25,45 +32,39 @@ export default function TocObserver({ data }: Props) {
       threshold: 0.1,
     });
 
-    const elements = data.map((item) =>
-      document.getElementById(item.href.slice(1))
-    );
+    const elements = data.map((item) => document.getElementById(item.href.slice(1)));
 
     elements.forEach((el) => {
-      if (el && observer.current) {
-        observer.current.observe(el);
+      if (el) {
+        observer.current?.observe(el);
       }
     });
 
     return () => {
-      if (observer.current) {
-        elements.forEach((el) => {
-          if (el) {
-            observer.current!.unobserve(el);
-          }
-        });
-      }
+      elements.forEach((el) => {
+        if (el) {
+          observer.current?.unobserve(el);
+        }
+      });
     };
   }, [data]);
 
   return (
     <div className="flex flex-col gap-2.5 text-sm dark:text-neutral-300/85 text-neutral-800 ml-0.5">
-      {data.map(({ href, level, text }) => {
-        return (
-          <Link
-            key={href}
-            href={href}
-            className={clsx({
-              "pl-0": level == 2,
-              "pl-4": level == 3,
-              "pl-8 ": level == 4,
-              "font-bold text-primary": activeId == href.slice(1),
-            })}
-          >
-            {text}
-          </Link>
-        );
-      })}
+      {data.map(({ href, level, text }) => (
+        <Link
+          style={{ marginLeft: (level - 1) * 16 }} // Indentation based on heading level
+          key={href}
+          href={href}
+          className={clsx(
+            'font-medium hover:text-gray-700 focus:outline-none dark:hover:text-gray-200',
+            'focus-visible:text-gray-700 dark:focus-visible:text-gray-200',
+            activeId === href.slice(1) ? "text-gray-900 dark:text-gray-100" : "text-gray-400 dark:text-gray-500",
+          )}
+        >
+          {text.replace(/\*\*/g, '')}
+        </Link>
+      ))}
     </div>
   );
 }

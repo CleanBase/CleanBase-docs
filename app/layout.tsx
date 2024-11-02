@@ -5,6 +5,8 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { Footer } from "@/components/footer";
 import "./globals.css";
+// import "./styles/prism.css";
+
 
 export const metadata: Metadata = {
   title: "AriaDocs - Template",
@@ -27,14 +29,13 @@ export default function RootLayout({
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
+          enableSystem={false}
         >
-          <Navbar />
-          <main className="sm:container mx-auto w-[88vw] h-auto">
-            {children}
-          </main>
-          <Footer />
+            <Navbar />
+            <main className="sm:container mx-auto w-[88vw] h-auto">
+              {children}
+            </main>
+            <Footer />
         </ThemeProvider>
       </body>
     </html>

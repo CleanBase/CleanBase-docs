@@ -14,7 +14,7 @@ export default function Home() {
         Follow nuget on GitHub{""}
         <MoveUpRightIcon className="w-4 h-4 font-extrabold" />
       </Link>
-      <h1 className="text-3xl  font-bold mb-4 sm:text-7xl">
+      <h1 className="text-3xl font-bold mb-4 sm:text-7xl">
         CleanBase NuGet Documentation for <span className="bg-clip-text text-transparent bg-gradient-to-r from-[#9780e5] via-[#e666cc] to-[#e666cc]">ASP.NET</span>
       </h1>
       <p className="mb-8 sm:text-xl max-w-[800px] text-muted-foreground">

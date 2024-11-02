@@ -69,22 +69,30 @@ export async function getDocsForSlug(slug: string) {
 export async function getDocsTocs(slug: string) {
   const contentPath = getDocsContentPath(slug);
   const rawMdx = await fs.readFile(contentPath, "utf-8");
-  // captures between ## - #### can modify accordingly
-  const headingsRegex = /^(#{2,4})\s(.+)$/gm;
+  
+  // Regex to capture headings (between ## and ####)
+  const headingsRegex = /^(#{1,4})\s(.+)$/gm;
   let match;
   const extractedHeadings = [];
+
   while ((match = headingsRegex.exec(rawMdx)) !== null) {
     const headingLevel = match[1].length;
     const headingText = match[2].trim();
     const slug = sluggify(headingText);
-    extractedHeadings.push({
-      level: headingLevel,
-      text: headingText,
-      href: `#${slug}`,
-    });
+
+    // Filter out specific headings, e.g., "Entities Layer"
+    if (headingText !== "Entities Layer") {
+      extractedHeadings.push({
+        level: headingLevel,
+        text: headingText,
+        href: `#${slug}`,
+      });
+    }
   }
+
   return extractedHeadings;
 }
+
 
 export function getPreviousNext(path: string) {
   const index = page_routes.findIndex(({ href }) => href == `/${path}`);
