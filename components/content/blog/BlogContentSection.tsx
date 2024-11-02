@@ -5,6 +5,7 @@ import TableOfContents from "@/components/content/TableOfContents";
 import LikeButton from "@/components/content/LikeButton";
 import Prism from 'prismjs';
 import 'prismjs/themes/prism-tomorrow.css';
+import { incrementLikes } from "@/lib/notion";
 
 // Load additional PrismJS language components
 require('prismjs/components/prism-javascript');
@@ -16,7 +17,9 @@ require('prismjs/components/prism-bash');
 require('prismjs/components/prism-tsx');
 
 interface ContentSectionProps {
+  pageId : string,
   blocks: any;
+  currenLike : number
   toc: {
     id: string;
     level: number;
@@ -27,9 +30,11 @@ interface ContentSectionProps {
 }
 
 const ContentSection: React.FC<ContentSectionProps> = ({
+  pageId,
   blocks,
   toc,
   minLevel,
+  currenLike,
   slug,
 }) => {
   const [activeSection, setActiveSection] = useState<string | null>(null);
@@ -97,7 +102,7 @@ const ContentSection: React.FC<ContentSectionProps> = ({
                     <code
                       style={{
                         display: 'block',
-                        padding: '20px',
+                        marginLeft: '20px',
                       }}
                       className={`language-${language}`}
                     >
@@ -107,7 +112,6 @@ const ContentSection: React.FC<ContentSectionProps> = ({
                 )),
               }}
             blocks={blocks}
-            simpleTitles
             classNames
             useStyles
             emptyBlocks
@@ -124,7 +128,7 @@ const ContentSection: React.FC<ContentSectionProps> = ({
             onScrollTo={handleScrollTo}
           />
           <div className="flex items-center justify-center py-8">
-            <LikeButton slug={slug} />
+            <LikeButton />
           </div>
         </div>
       </aside>

@@ -1,22 +1,18 @@
+"server only";
+import notFound from "@/app/not-found";
+import Seo from "@/components/Seo";
+import CustomLink from "@/components/links/CustomLink";
 import {
   countWordsInNotionPage,
   fetchPageBlocks,
   fetchPageBySlug,
-  queryNotionDatabase
+  queryNotionDatabaseWithRelPosts,
 } from "@/lib/notion";
-
-
-import Accent from "@/components/Accent";
-import BlogCard from "@/components/content/blog/BlogCard";
-import ContentSection from "@/components/content/blog/BlogContentSection";
-import CustomLink from "@/components/links/CustomLink";
-import Seo from "@/components/Seo";
 import { format } from "date-fns";
 import Image from "next/image";
-import { notFound } from "next/navigation";
+import React, { Suspense } from "react";
 import { HiOutlineClock, HiOutlineEye } from "react-icons/hi";
 import readingTime from "reading-time";
-import React from "react";
 
 interface RichText {
   text: { content: string };
@@ -33,6 +29,14 @@ interface HeadingBlock extends BlockObjectResponse {
   rich_text: RichText[];
 }
 
+// Lazy load components
+const ContentSectionLazy = React.lazy(
+  () => import("@/components/content/blog/BlogContentSection")
+);
+const BlogCardLazy = React.lazy(
+  () => import("@/components/content/blog/BlogCard")
+);
+
 export default async function Page({ params }: { params: { slug: string } }) {
   const pageSlug = decodeURIComponent(params.slug);
   const page = await fetchPageBySlug(pageSlug);
@@ -40,17 +44,16 @@ export default async function Page({ params }: { params: { slug: string } }) {
   if (!page) notFound();
 
   const pageData = await mapPageData(page);
-  const postsRelate = await queryNotionDatabase(
-    process.env.NOTION_DATABASE_ID as string
+
+  const relatedPostsPromise = queryNotionDatabaseWithRelPosts(
+    process.env.NOTION_DATABASE_ID as string,
+    pageData.tags
   );
-  const randomPosts = getRandomPosts(postsRelate, 3);
 
   const blocks = await fetchPageBlocks(pageData.id);
+
   const toc = createTableOfContents(blocks);
   const minLevel = toc.reduce((min, item) => Math.min(min, item.level), 10);
-
-
-  
   return (
     <>
       <Seo
@@ -59,8 +62,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
         isBlog
         banner={pageData.banner}
         date={new Date(pageData.updateAt ?? pageData.publishedAt).toISOString()}
-        canonical={"null"}
-        tags={pageData.tags}
         pathname={`/blog/${pageData.slug}`}
       />
       <main>
@@ -73,6 +74,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                 width={1200}
                 height={500}
                 src={pageData.banner}
+                loading="lazy"
               />
               <h1 className="mt-4">
                 {pageData.icon?.img ? (
@@ -82,6 +84,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                     width={60}
                     height={60}
                     alt=""
+                    loading="lazy"
                   />
                 ) : (
                   <span className="text-center text-3xl">
@@ -90,7 +93,6 @@ export default async function Page({ params }: { params: { slug: string } }) {
                 )}
                 {pageData.title}
               </h1>
-
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 flex items-center">
                 Written on{" "}
                 {format(new Date(pageData.publishedAt), "MMMM dd, yyyy")} by{" "}
@@ -100,6 +102,7 @@ export default async function Page({ params }: { params: { slug: string } }) {
                   height={20}
                   className="rounded-2xl m-1"
                   alt=""
+                  loading="lazy"
                 />
                 {pageData.author.name}
               </p>
@@ -111,47 +114,31 @@ export default async function Page({ params }: { params: { slug: string } }) {
                   </p>
                 </div>
               )}
-              <div className="mt-6 flex items-center justify-start gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
-                <div className="flex items-center gap-1">
-                  <HiOutlineClock className="inline-block text-base" />
-                  <Accent>{pageData.readingTime.text}</Accent>
-                </div>
-                <div className="flex items-center gap-1">
-                  <HiOutlineEye className="inline-block text-base" />
-                  <Accent>
-                    {pageData.views?.toLocaleString() ?? "–––"} views
-                  </Accent>
-                </div>
+              <div className="mt-6 flex items-center gap-2 text-sm font-medium text-gray-600 dark:text-gray-300">
+                <HiOutlineClock className="inline-block text-base" />
+                <span>{pageData.readingTime.text}</span>
+                <HiOutlineEye className="inline-block text-base" />
+                <span>{pageData.views?.toLocaleString() ?? "–––"} views</span>
               </div>
             </div>
 
-            <hr className="dark:border-gray-600" />
+            <Suspense fallback={<p>Loading content...</p>}>
+              <ContentSectionLazy
+                pageId={pageData.id}
+                currenLike={1}
+                blocks={blocks}
+                slug={pageData.slug}
+                toc={toc}
+                minLevel={minLevel}
+              />
+            </Suspense>
 
-            <ContentSection
-              blocks={blocks}
-              toc={toc}
-              minLevel={minLevel}
-              slug={pageData.slug}
-            />
+            {/* Related Posts */}
+            <Suspense fallback={<p>Loading related posts...</p>}>
+              <RelatedPosts relatedPostsPromise={relatedPostsPromise} />
+            </Suspense>
 
-            {randomPosts.length > 0 && (
-              <div className="mt-20">
-                <h2>
-                  <Accent>Other posts that you might like</Accent>
-                </h2>
-                <ul className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {randomPosts.map((post) => (
-                    <BlogCard
-                      key={post.slug}
-                      post={post}
-                      checkTagged={undefined}
-                    />
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <div className="mt-8 flex flex-col items-start gap-4 md:flex-row-reverse md:justify-between">
+            <div className="mt-8 flex gap-4 md:flex-row-reverse md:justify-between">
               <CustomLink href={"GITHUB_EDIT_LINK"}>
                 Edit this on GitHub
               </CustomLink>
@@ -164,65 +151,51 @@ export default async function Page({ params }: { params: { slug: string } }) {
   );
 }
 
+async function RelatedPosts({ relatedPostsPromise }: any) {
+  const relatedPosts = await relatedPostsPromise;
+
+  return (
+    <div className="mt-20">
+      <h2>Other posts that you might like</h2>
+      <ul className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {relatedPosts.map((post: any) => (
+          <Suspense key={post.slug} fallback={<p>Loading post...</p>}>
+            <BlogCardLazy post={post} />
+          </Suspense>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+// Optimized data mapping function
 async function mapPageData(page: any) {
-  const id = page?.id || "";
-  const title =
-    page.properties?.["Content Title"]?.title[0]?.text?.content || "";
-  const publishedAt = page.created_time
-    ? new Date(page.created_time)
-    : new Date(0);
-  const updateAt = page.last_edited_time
-    ? new Date(page.last_edited_time)
-    : new Date(0);
-
-  const author = {
-    name: String(page.properties?.Author?.people[0]?.name || ""),
-    avatar_url: String(page.properties?.Author?.people[0]?.avatar_url || ""),
-    email: String(page.properties?.Author?.people[0]?.person?.email || ""),
-  };
-
-  const icon =
-    page?.icon && (page.icon.file?.url || page.icon.emoji)
-      ? {
-          img: String(page.icon.file?.url || ""),
-          icon: String(page.icon.emoji || ""),
-        }
-      : null;
-
-  const views = page.properties?.Views?.number || 0;
-  const description = String(
-    page.properties?.Description?.rich_text[0]?.plain_text || ""
-  );
-  const banner = String(
-    page.cover?.external?.url || page.cover?.file?.url || ""
-  );
-  const tags =
-    page.properties?.["Blog Category"]?.multi_select
-      ?.map((tag: any) => tag.name)
-      .join(",") || "";
-  const slug = title;
-
-  const wordCount = await countWordsInNotionPage(id);
+  const wordCount = await countWordsInNotionPage(page.id);
   const readingTimeResult = readingTime(wordCount);
 
   return {
-    id,
-    title,
-    publishedAt,
-    updateAt,
-    author,
-    icon,
-    views,
-    description,
-    banner,
-    tags,
-    slug,
+    id: page.id,
+    title: page.properties["Content Title"]?.title[0]?.text?.content ?? "",
+    publishedAt: new Date(page.created_time),
+    updateAt: new Date(page.last_edited_time),
+    author: {
+      name: page.properties.Author?.people[0]?.name ?? "",
+      avatar_url: page.properties.Author?.people[0]?.avatar_url ?? "",
+    },
+    icon: {
+      img: page.icon?.file?.url ?? "",
+      icon: page.icon?.emoji ?? "",
+    },
+    views: page.properties.Views?.number ?? 0,
+    description: page.properties.Description?.rich_text[0]?.plain_text ?? "",
+    banner: page.cover?.external?.url ?? page.cover?.file?.url ?? "",
+    tags:
+      page.properties["Blog Category"]?.multi_select
+        .map((tag: any) => tag.name)
+        .join(",") ?? "",
+    slug: page.properties["Content Title"]?.title[0]?.text?.content ?? "",
     readingTime: readingTimeResult,
   };
-}
-
-function getRandomPosts(posts: any[], count: number) {
-  return posts.sort(() => 0.5 - Math.random()).slice(0, count);
 }
 
 function createTableOfContents(blocks: any[]) {
@@ -230,7 +203,7 @@ function createTableOfContents(blocks: any[]) {
     .filter((block): block is HeadingBlock =>
       ["heading_1", "heading_2", "heading_3"].includes(block.type)
     )
-    .map((block:any) => {
+    .map((block: any) => {
       const level =
         block.type === "heading_1" ? 1 : block.type === "heading_2" ? 2 : 3;
       const text = block[block.type]?.rich_text[0].plain_text;

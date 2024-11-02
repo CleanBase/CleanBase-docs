@@ -141,6 +141,12 @@ h1, .h1 {
   }
 }
 
+.prose :where(a):not(:where([class~="not-prose"],[class~="not-prose"] *)) {
+  color: var(--tw-prose-links);
+  text-decoration: none;
+  font-weight: 500;
+}
+
 .prose {
   margin: 0 !important;
 }
@@ -151,16 +157,6 @@ pre {
   overflow-x: auto;
 }
 
-pre>code {
-  display: grid;
-  max-width: inherit !important;
-  padding: 14px 0 !important;
-}
-
-.code-line {
-  padding: 0.75px 16px;
-  @apply border-l-2 border-transparent
-}
 
 .line-number::before {
   display: inline-block;
@@ -175,15 +171,6 @@ pre>code {
 
 .highlight-line {
   @apply bg-primary/5 border-l-2 border-primary/30;
-}
-
-
-.rehype-code-title {
-  @apply px-2 -mb-8 w-full text-sm pb-5 font-medium mt-5 font-code;
-}
-
-.highlight-comp>code {
-  background-color: transparent !important;
 }
 
 @layer utilities {
@@ -272,3 +259,4 @@ pre>code {
   .heart-button:active .heart-animate {
     transform: scale(1.3);
   }
+
